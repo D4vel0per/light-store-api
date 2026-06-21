@@ -4,6 +4,7 @@ from models import billing, products, selling, snapshots, stores, transactions, 
 
 class User(Document, users.BaseUser):
     password_hash: str
+    logged_in: bool
     class Settings:
         name = "users"
 

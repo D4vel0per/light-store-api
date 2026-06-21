@@ -15,4 +15,3 @@ async def initialize ():
         Transaction,
         User
     ])
-
