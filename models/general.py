@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 
-from beanie import Insert, Replace, SaveChanges, Update, before_event
+from beanie import Insert, PydanticObjectId, Replace, SaveChanges, Update, before_event
 from pydantic import BaseModel, Field
+
+from models.stores import CURRENCIES
 
 class BaseDB(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -14,3 +16,9 @@ class BaseDB(BaseModel):
     @before_event(Update, SaveChanges, Replace)
     def set_updated_at(self):
         self.updated_at = datetime.now(timezone.utc)
+
+class ProductDescriptor (BaseModel):
+    quantity: int
+    price_per_unit: int
+    product_id: PydanticObjectId
+    currency: CURRENCIES

@@ -24,14 +24,10 @@ class CreateStore (BaseStore):
     name: str
     tax_doc: str
     phone_number: E164NumberType
-    internal_currency: CURRENCIES
-    product_currency: CURRENCIES
     address: Address
 
 class PatchStore (BaseStore):
     name: str | None = None
     tax_doc: str | None = None
     phone_number: E164NumberType | None = None
-    internal_currency: CURRENCIES | None = None 
-    product_currency: CURRENCIES | None = None 
     address: Address | None = None

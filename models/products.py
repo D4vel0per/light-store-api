@@ -6,18 +6,15 @@ from pydantic import BaseModel, Field
 from models.general import BaseDB
 
 class BaseProduct(BaseDB):
-    store_id: PydanticObjectId
-    snapshot_id: PydanticObjectId
+    user_id: PydanticObjectId
 
 class LifeCicle(BaseModel):
     production: datetime
     expiration: datetime
 
-class Measurement:
-    def __init__(self, singular: str, plural: str):
-        self.singular = singular
-        self.plural = plural
-
+class Measurement(BaseModel):
+    singular: str
+    plural: str
     def measurement(self, quantity: int):
         return self.singular if quantity == 1 else self.plural
 
@@ -32,7 +29,7 @@ class CreateProduct(BaseProduct):
     measurement: Measurement | None = None
     tags: list[str] = Field(default_factory=lambda: [])
 
-class PatchProduct(BaseProduct):
+class PatchProduct(BaseModel):
     name: str | None = None
     brand: str | None = None
     description: str | None = None

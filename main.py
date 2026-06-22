@@ -2,12 +2,20 @@ from contextlib import asynccontextmanager
 from db import server
 
 from fastapi import FastAPI
+from routers import billing, products, selling, snapshots, stores, transactions, users
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     await server.initialize()
     
     yield
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
+app.include_router(billing.router, tags=["Billing"])
+app.include_router(products.router, tags=["Products"])
+app.include_router(selling.router, tags=["Selling"])
+app.include_router(snapshots.router, tags=["Snapshots"])
+app.include_router(stores.router, tags=["Stores"])
+app.include_router(transactions.router, tags=["Transactions"])
+app.include_router(users.router, tags=["Users"])

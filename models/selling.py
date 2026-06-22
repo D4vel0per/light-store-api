@@ -1,15 +1,19 @@
 from beanie import PydanticObjectId
 
-from models.general import BaseDB
+from models.general import BaseDB, ProductDescriptor
+from models.stores import CURRENCIES
 
 class BaseSelling(BaseDB):
-    product_id: PydanticObjectId
     transaction_id: PydanticObjectId
 
 class CreateSelling(BaseSelling):
-    quantity: int
     total: int
+    description: str
+    product: ProductDescriptor
+    currency: CURRENCIES
 
 class PatchSelling(BaseSelling):
-    quantity: int | None = None
     total: int | None = None
+    description: str | None = None
+    product: ProductDescriptor | None = None
+    currency: CURRENCIES | None = None

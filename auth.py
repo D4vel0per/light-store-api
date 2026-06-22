@@ -1,10 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel
 
-from models.users import BaseUser
 from db.documents import User
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
@@ -16,11 +15,11 @@ secret_key = "111111111111111111111111111111111111111111111111111111111111111111
 algorithm = "HS256"
 expire_minutes = 120
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
 
 password_hash = PasswordHash.recommended()
 
-type oauth_token = Annotated[str, Depends(oauth2_scheme)]
+type OAuthToken = Annotated[str, Depends(oauth2_scheme)]
 
 class InvalidCredentials (HTTPException):
     """
@@ -56,7 +55,7 @@ def create_access_token(username:str, expires_delta: timedelta | None = None):
 
     data = {
         "sub": username,
-        "exp": datetime.now() + expires_delta
+        "exp": datetime.now(timezone.utc) + expires_delta
     }
 
     encoded_jwt = jwt.encode(payload=data, key=secret_key, algorithm=algorithm)
@@ -68,10 +67,11 @@ def decode_access_token (token: str):
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         username: str | None = payload.get("sub")
         return username
-    except InvalidTokenError:
+    except InvalidTokenError as e:
+        print(e)
         return None
 
-async def get_current_user (token: oauth_token):
+async def get_current_user (token: OAuthToken):
     username = decode_access_token(token)
 
     if not username:
@@ -84,4 +84,4 @@ async def get_current_user (token: oauth_token):
     
     return user
 
-type current_user_type = Annotated[User, Depends(get_current_user)]
+type CurrentUserType = Annotated[User, Depends(get_current_user)]
