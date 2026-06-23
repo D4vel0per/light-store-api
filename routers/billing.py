@@ -1,9 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated, TypedDict, Unpack
+
+from beanie.operators import In
+from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
+from pydantic import BaseModel
 
 from db.server import Billing, Transaction
 from auth import CurrentUserType
-from models.billing import CreateBilling, PatchBilling
+from models.billing import CreateBilling, PatchBilling, SearchBilling
+from models.general import ProductDescriptor
+from models.stores import CURRENCIES
 
 router = APIRouter(prefix="/api/billing")
 
@@ -26,14 +32,19 @@ async def get_billing_by_id(billing_id: str, current_user: CurrentUserType):
     
     return billing
 
+type SearchTerms = Annotated[SearchBilling, Query()]
 
 @router.get(
-    "/all",
+    "/all/get",
     response_model=list[Billing]
 )
-async def get_all_billings(current_user: CurrentUserType):
+async def get_all_billings(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchBilling()
+):
     transactions = await Transaction.find_many(
-        Transaction.user_id == current_user.id
+        Transaction.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
     ).to_list()
     
     transaction_ids = [t.id for t in transactions]
@@ -46,7 +57,6 @@ async def get_all_billings(current_user: CurrentUserType):
         ).to_list())
     
     return billings
-
 
 @router.get(
     "/transaction/{transaction_id}",
@@ -183,19 +193,21 @@ async def delete_billings_by_transaction(transaction_id: str, current_user: Curr
         Billing.transaction_id == object_id
     ).delete_many()
 
-
 @router.delete(
-    "/delete/all",
+    "/all/delete",
     status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_all_billings(current_user: CurrentUserType):
+async def delete_all_billings(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchBilling()
+):
     transactions = await Transaction.find_many(
-        Transaction.user_id == current_user.id
+        Transaction.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
     ).to_list()
 
-    for transaction in transactions:
-        if not transaction.id: continue
-        await delete_billings_by_transaction(
-            transaction.id.binary.decode("utf-8"),
-            current_user
-        )
+    ids = [ t.id for t in transactions if t.id ]
+
+    await Billing.find_many(
+        In(Billing.transaction_id, ids)
+    ).delete_many()

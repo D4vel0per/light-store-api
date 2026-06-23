@@ -1,11 +1,16 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from beanie.operators import In
+from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
 
 from db.server import Selling, Transaction
 from auth import CurrentUserType
-from models.selling import CreateSelling, PatchSelling
+from models.selling import CreateSelling, PatchSelling, SearchSelling
 
 router = APIRouter(prefix="/api/selling")
+
+type SearchTerms = Annotated[SearchSelling, Query()]
 
 
 @router.get(
@@ -34,20 +39,23 @@ async def get_selling_by_id(selling_id: str, current_user: CurrentUserType):
     "/all",
     response_model=list[Selling]
 )
-async def get_all_sellings(current_user: CurrentUserType):
+async def get_all_sellings(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchSelling()
+):
     transactions = await Transaction.find_many(
         Transaction.user_id == current_user.id
     ).to_list()
 
-    transaction_ids = [t.id for t in transactions]
+    transaction_ids = [t.id for t in transactions if t.id]
 
-    sellings = []
+    if not transaction_ids:
+        return []
 
-    for t_id in transaction_ids:
-
-        sellings.extend(await Selling.find_many(
-            Selling.transaction_id == t_id
-        ).to_list())
+    sellings = await Selling.find_many(
+        In(Selling.transaction_id, transaction_ids),
+        search_terms.model_dump(exclude_none=True)
+    ).to_list()
 
     return sellings
 
@@ -199,14 +207,20 @@ async def delete_sellings_by_transaction(transaction_id: str, current_user: Curr
     "/delete/all",
     status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_all_sellings(current_user: CurrentUserType):
+async def delete_all_sellings(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchSelling()
+):
     transactions = await Transaction.find_many(
         Transaction.user_id == current_user.id
     ).to_list()
 
-    for transaction in transactions:
-        if not transaction.id: continue
-        await delete_sellings_by_transaction(
-            transaction.id.binary.decode("utf-8"),
-            current_user
-        )
+    ids = [ t.id for t in transactions if t.id ]
+
+    if not ids:
+        return
+
+    await Selling.find_many(
+        In(Selling.transaction_id, ids),
+        search_terms.model_dump(exclude_none=True)
+    ).delete_many()

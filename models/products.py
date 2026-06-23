@@ -3,10 +3,15 @@ from datetime import datetime
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
-from models.general import BaseDB
-
-class BaseProduct(BaseDB):
+class BaseProduct(BaseModel):
     user_id: PydanticObjectId
+
+class SearchProduct(BaseModel):
+    name: str | None = None
+    brand: str | None = None
+    description: str | None = None
+    code: str | None = None
+    tags: list[str] | None = None
 
 class LifeCicle(BaseModel):
     production: datetime

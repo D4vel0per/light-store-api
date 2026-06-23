@@ -15,6 +15,7 @@ from auth import (
 )
 from models.users import BaseUser, PatchUser
 from routers.billing import delete_all_billings
+from routers.products import delete_all_products
 from routers.stores import delete_all_stores
 from routers.transactions import delete_all_transactions
 
@@ -94,7 +95,6 @@ async def update_account(account_data: PatchUser, current_user: CurrentUserType)
     "/delete-account"
 )
 async def delete_account(current_user: CurrentUserType):
-    await delete_all_billings(current_user=current_user)
-    await delete_all_transactions(current_user=current_user)
+    await delete_all_products(current_user=current_user)
     await delete_all_stores(current_user=current_user)
     await current_user.delete()

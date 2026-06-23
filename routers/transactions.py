@@ -1,12 +1,19 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from beanie.operators import In
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from beanie import PydanticObjectId
 
-from db.documents import Store
+from db.documents import Billing, Selling, Store
 from db.server import Transaction
 from auth import CurrentUserType
-from models.transactions import CreateTransaction, PatchTransaction
+from models.transactions import CreateTransaction, PatchTransaction, SearchTransaction
+from routers.billing import delete_all_billings
+from routers.selling import delete_all_sellings
 
 router = APIRouter(prefix="/api/transactions")
+
+type SearchTerms = Annotated[SearchTransaction, Query()]
 
 @router.get(
     "/get/{transaction_id}",
@@ -26,9 +33,13 @@ async def get_transaction_by_id(transaction_id: str, current_user: CurrentUserTy
     "/all",
     response_model=list[Transaction]
 )
-async def get_all_transactions(current_user: CurrentUserType):
+async def get_all_transactions(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchTransaction()
+):
     transactions = await Transaction.find_many(
-        Transaction.user_id == current_user.id
+        Transaction.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
     ).to_list()
 
     return transactions
@@ -129,11 +140,29 @@ async def delete_transactions_by_store_id(store_id: str, current_user: CurrentUs
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Cannot delete transactions: store not found or does not belong to user."
         )
-
-    await Transaction.find_many(
+    
+    transactions = Transaction.find_many(
         Transaction.store_id == object_id,
         Transaction.user_id == current_user.id
+    )
+
+    t_ids = [ t.id for t in (await transactions.to_list()) if t.id]
+    
+    await Billing.find_many(
+        In(
+            Billing.transaction_id, 
+            t_ids
+        )
     ).delete_many()
+
+    await Selling.find_many(
+        In(
+            Selling.transaction_id, 
+            t_ids
+        )
+    ).delete_many()
+
+    await transactions.delete_many()
 
 @router.delete(
     "/delete/{transaction_id}",
@@ -143,14 +172,39 @@ async def delete_transaction(transaction_id: str, current_user: CurrentUserType)
     transaction = await get_transaction_by_id(
         transaction_id=transaction_id, current_user=current_user
     )
-    if transaction:
-        await transaction.delete()
+    if not transaction: return None
+
+    await Selling.find_many(Selling.transaction_id == transaction.id).delete_many()
+    await Billing.find_many(Selling.transaction_id == transaction.id).delete_many()
+
+    await transaction.delete()
 
 @router.delete(
     "/delete/all",
     status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_all_transactions(current_user: CurrentUserType):
+async def delete_all_transactions(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchTransaction()
+):
+    transactions = await Transaction.find_many(
+        Transaction.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
+    ).to_list()
+
+    ids = [t.id for t in transactions if t.id]
+
+    if not ids:
+        return
+
+    await Billing.find_many(
+        In(Billing.transaction_id, ids)
+    ).delete_many()
+
+    await Selling.find_many(
+        In(Selling.transaction_id, ids)
+    ).delete_many()
+
     await Transaction.find_many(
-        Transaction.user_id==current_user.id
+        In(Transaction.id, ids)
     ).delete_many()

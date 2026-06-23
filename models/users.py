@@ -1,11 +1,16 @@
-from models.general import BaseDB
+from pydantic import BaseModel
 
-class BaseUser (BaseDB):
+class BaseUser (BaseModel):
     username: str
     email: str
     bio: str = ""
 
-class PatchUser (BaseDB):
+class SearchUser(BaseModel):
+    username: str | None = None
+    email: str | None = None
+    bio: str | None = None
+
+class PatchUser (BaseModel):
     username: str | None = None
     email: str | None = None
     bio: str | None = None

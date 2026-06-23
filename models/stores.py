@@ -26,8 +26,13 @@ class CreateStore (BaseStore):
     phone_number: E164NumberType
     address: Address
 
-class PatchStore (BaseStore):
+class PatchStore (BaseModel):
     name: str | None = None
     tax_doc: str | None = None
     phone_number: E164NumberType | None = None
     address: Address | None = None
+
+class SearchStore(BaseModel):
+    name: str | None = None
+    tax_doc: str | None = None
+    phone_number: str | None = None

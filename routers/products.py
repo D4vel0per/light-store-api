@@ -1,11 +1,18 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from beanie.operators import In
+from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
 
 from auth import CurrentUserType
+from db.documents import Billing, Snapshot
 from db.server import Product
-from models.products import CreateProduct, PatchProduct
+from models.products import CreateProduct, PatchProduct, SearchProduct
+from routers.snapshots import delete_all_snapshots
 
 router = APIRouter(prefix="/api/products")
+
+type SearchTerms = Annotated[SearchProduct, Query()]
 
 @router.get(
     "/get/{product_id}",
@@ -26,9 +33,13 @@ async def get_product_by_id(product_id: str, current_user: CurrentUserType):
     "/all",
     response_model=list[Product]
 )
-async def get_all_products(current_user: CurrentUserType):
+async def get_all_products(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchProduct()
+):
     return await Product.find_many(
-        Product.user_id == current_user.id
+        Product.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
     ).to_list()
 
 @router.post(
@@ -99,13 +110,32 @@ async def delete_product(product_id: str, current_user: CurrentUserType):
             detail="Cannot delete product: product could not be found."
         )
 
+    await Snapshot.find_many(Snapshot.product_id == product.id).delete_many()
+
     await product.delete()
 
 @router.delete(
     "/delete/all",
     status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_all_products(current_user: CurrentUserType):
+async def delete_all_products(
+    current_user: CurrentUserType,
+    search_terms: SearchTerms = SearchProduct()
+):
+    products = await Product.find_many(
+        Product.user_id == current_user.id,
+        search_terms.model_dump(exclude_none=True)
+    ).to_list()
+
+    product_ids = [product.id for product in products if product.id]
+
+    if not product_ids:
+        return
+
+    await Snapshot.find_many(
+        In(Snapshot.product_id, product_ids)
+    ).delete_many()
+
     await Product.find_many(
-            Product.user_id == current_user.id
+        In(Product.id, product_ids)
     ).delete_many()

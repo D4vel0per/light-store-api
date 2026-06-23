@@ -1,9 +1,10 @@
 from beanie import PydanticObjectId
+from pydantic import BaseModel
 
 from models.general import BaseDB, ProductDescriptor
 from models.stores import CURRENCIES
 
-class BaseBilling(BaseDB):
+class BaseBilling(BaseModel):
     transaction_id: PydanticObjectId
 
 class CreateBilling(BaseBilling):
@@ -12,8 +13,14 @@ class CreateBilling(BaseBilling):
     product: ProductDescriptor | None = None
     currency: CURRENCIES
 
-class PatchBilling(BaseBilling):
+class PatchBilling(BaseModel):
     total: int | None = None
     description: str | None = None
     product: ProductDescriptor | None = None
+    currency: CURRENCIES | None = None
+
+class SearchBilling(BaseModel):
+    total: int | None = None
+    description: str | None = None
+    product_id: str | None = None
     currency: CURRENCIES | None = None
