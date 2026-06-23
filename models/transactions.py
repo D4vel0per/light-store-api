@@ -5,7 +5,6 @@ from models.stores import CURRENCIES
 
 class BaseTransaction (BaseModel):
     store_id: PydanticObjectId
-    user_id: PydanticObjectId
 
 class SearchTransaction(BaseModel):
     store_id: str | None = None

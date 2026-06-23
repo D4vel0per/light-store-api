@@ -3,13 +3,13 @@ from typing import Annotated
 from beanie.operators import In
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from beanie import PydanticObjectId
+from fastapi_pagination import Page
 
 from db.documents import Billing, Selling, Store
 from db.server import Transaction
 from auth import CurrentUserType
 from models.transactions import CreateTransaction, PatchTransaction, SearchTransaction
-from routers.billing import delete_all_billings
-from routers.selling import delete_all_sellings
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/transactions")
 
@@ -31,18 +31,18 @@ async def get_transaction_by_id(transaction_id: str, current_user: CurrentUserTy
 
 @router.get(
     "/all",
-    response_model=list[Transaction]
+    response_model=Page[Transaction]
 )
 async def get_all_transactions(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchTransaction()
+    search_terms: SearchTransaction = Query()
 ):
-    transactions = await Transaction.find_many(
+    transactions = Transaction.find_many(
         Transaction.user_id == current_user.id,
         search_terms.model_dump(exclude_none=True)
-    ).to_list()
+    )
 
-    return transactions
+    return apaginate(transactions)
 
 @router.post(
     "/create",

@@ -3,6 +3,7 @@ from typing import Annotated, TypedDict, Unpack
 from beanie.operators import In
 from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
+from fastapi_pagination import Page
 from pydantic import BaseModel
 
 from db.server import Billing, Transaction
@@ -10,6 +11,7 @@ from auth import CurrentUserType
 from models.billing import CreateBilling, PatchBilling, SearchBilling
 from models.general import ProductDescriptor
 from models.stores import CURRENCIES
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/billing")
 
@@ -36,11 +38,11 @@ type SearchTerms = Annotated[SearchBilling, Query()]
 
 @router.get(
     "/all/get",
-    response_model=list[Billing]
+    response_model=Page[Billing]
 )
 async def get_all_billings(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchBilling()
+    search_terms: SearchBilling = Query()
 ):
     transactions = await Transaction.find_many(
         Transaction.user_id == current_user.id,
@@ -49,14 +51,11 @@ async def get_all_billings(
     
     transaction_ids = [t.id for t in transactions]
 
-    billings = []
-
-    for t_id in transaction_ids:
-        billings.extend(await Billing.find_many(
-            Billing.transaction_id == t_id
-        ).to_list())
+    billings = Billing.find_many(In(
+        Billing.transaction_id, transaction_ids
+    ))
     
-    return billings
+    return apaginate(billings)
 
 @router.get(
     "/transaction/{transaction_id}",

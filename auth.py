@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import secrets
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -44,7 +45,7 @@ async def authenticate(username: str, password: str):
     user = await User.find_one(User.username == username)
 
     if not user:
-        verify_password(password, password_hash.hash(random.randbytes(16).decode("utf-8")))
+        verify_password(password, password_hash.hash(secrets.token_hex()))
         return False
     
     return verify_password(password, user.password_hash)

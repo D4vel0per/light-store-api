@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+
+from fastapi_pagination import add_pagination
 from db import server
 
 from fastapi import FastAPI
@@ -11,6 +13,8 @@ async def lifespan(_: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+add_pagination(app)
 
 app.include_router(billing.router, tags=["Billing"])
 app.include_router(products.router, tags=["Products"])

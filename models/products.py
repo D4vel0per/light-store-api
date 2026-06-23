@@ -1,10 +1,6 @@
 from datetime import datetime
 
-from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
-
-class BaseProduct(BaseModel):
-    user_id: PydanticObjectId
 
 class SearchProduct(BaseModel):
     name: str | None = None
@@ -23,11 +19,11 @@ class Measurement(BaseModel):
     def measurement(self, quantity: int):
         return self.singular if quantity == 1 else self.plural
 
-class CreateProduct(BaseProduct):
+class CreateProduct(BaseModel):
     name: str
     brand: str
     description: str | None = None
-    descriptors: dict[str, str] = Field(default_factory=lambda: {})
+    descriptors: dict[str, str] | None = Field(default_factory=lambda: {})
     code: str
     life_cicle: LifeCicle | None = None
     quantity: int

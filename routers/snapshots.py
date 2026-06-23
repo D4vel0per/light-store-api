@@ -1,9 +1,9 @@
-from typing import Any, Callable, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from beanie import Document, PydanticObjectId
+from beanie import PydanticObjectId
 from beanie.operators import In
-from pydantic import BaseModel
+from fastapi_pagination import Page
 
 from auth import CurrentUserType
 from db.documents import Store, User
@@ -11,6 +11,7 @@ from db.server import Snapshot, Product
 from models.snapshots import CreateSnapshot, PatchSnapshot, SearchSnapshot
 from routers.products import Product
 from routers.stores import get_all_stores
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/snapshot")
 
@@ -58,25 +59,25 @@ async def get_snapshot_by_id(snapshot_id: str, current_user: CurrentUserType):
 
 @router.get(
     "/all/get",
-    response_model=list[Snapshot]
+    response_model=Page[Snapshot]
 )
 async def get_all_snapshots(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchSnapshot()
+    search_terms: SearchSnapshot = Query()
 ):
-    stores = await get_all_stores(current_user=current_user)
+    stores = await Store.find_many(
+        Store.user_id == current_user.id
+    ).to_list()
     store_ids = [ store.id for store in stores if store.id ]
 
-    snapshots: list[Snapshot] = []
+    if len(store_ids) == 0: return []
 
-    if len(store_ids) == 0: return snapshots
-
-    snapshots.extend(await Snapshot.find(
+    snapshots = Snapshot.find(
         In(Snapshot.store_id, store_ids),
         search_terms.model_dump(exclude_none=True)
-    ).to_list())
+    )
 
-    return snapshots
+    return apaginate(snapshots)
 
 
 @router.get(
@@ -213,7 +214,10 @@ async def delete_all_snapshots(
     current_user: CurrentUserType,
     search_terms: SearchTerms = SearchSnapshot()
 ):
-    stores = await get_all_stores(current_user=current_user)
+    stores = await Store.find_many(
+        Store.user_id == current_user.id
+    ).to_list()
+
     store_ids = [ store.id for store in stores if store.id ]
 
     if not store_ids: return

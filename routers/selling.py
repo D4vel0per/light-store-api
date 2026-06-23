@@ -3,10 +3,12 @@ from typing import Annotated
 from beanie.operators import In
 from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
+from fastapi_pagination import Page
 
 from db.server import Selling, Transaction
 from auth import CurrentUserType
 from models.selling import CreateSelling, PatchSelling, SearchSelling
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/selling")
 
@@ -37,11 +39,11 @@ async def get_selling_by_id(selling_id: str, current_user: CurrentUserType):
 
 @router.get(
     "/all",
-    response_model=list[Selling]
+    response_model=Page[Selling]
 )
 async def get_all_sellings(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchSelling()
+    search_terms: SearchSelling = Query()
 ):
     transactions = await Transaction.find_many(
         Transaction.user_id == current_user.id
@@ -52,12 +54,12 @@ async def get_all_sellings(
     if not transaction_ids:
         return []
 
-    sellings = await Selling.find_many(
+    sellings = Selling.find_many(
         In(Selling.transaction_id, transaction_ids),
         search_terms.model_dump(exclude_none=True)
-    ).to_list()
+    )
 
-    return sellings
+    return apaginate(sellings)
 
 
 @router.get(

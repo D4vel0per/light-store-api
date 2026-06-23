@@ -3,12 +3,13 @@ from typing import Annotated
 from beanie.operators import In
 from fastapi import APIRouter, HTTPException, Query, status
 from beanie import PydanticObjectId
+from fastapi_pagination import Page
 
 from auth import CurrentUserType
-from db.documents import Billing, Snapshot
+from db.documents import Snapshot
 from db.server import Product
 from models.products import CreateProduct, PatchProduct, SearchProduct
-from routers.snapshots import delete_all_snapshots
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/products")
 
@@ -31,16 +32,16 @@ async def get_product_by_id(product_id: str, current_user: CurrentUserType):
 
 @router.get(
     "/all",
-    response_model=list[Product]
+    response_model=Page[Product]
 )
 async def get_all_products(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchProduct()
+    search_terms: SearchProduct = Query()
 ):
-    return await Product.find_many(
+    return apaginate(Product.find_many(
         Product.user_id == current_user.id,
         search_terms.model_dump(exclude_none=True)
-    ).to_list()
+    ))
 
 @router.post(
     "/create",

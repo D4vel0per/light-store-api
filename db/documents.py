@@ -1,4 +1,4 @@
-from beanie import Document, Link, PydanticObjectId
+from beanie import Document, PydanticObjectId
 
 from models import billing, products, selling, snapshots, stores, transactions, users
 from models.general import BaseDB
@@ -11,10 +11,12 @@ class User(Document, users.BaseUser, BaseDB):
         name = "users"
 
 class Store(Document, stores.CreateStore, BaseDB):
+    user_id: PydanticObjectId
     class Settings:
         name = "stores"
 
 class Transaction(Document, transactions.CreateTransaction, BaseDB):
+    user_id: PydanticObjectId
     class Settings:
         name = "transactions"
 
@@ -23,6 +25,7 @@ class Snapshot(Document, snapshots.CreateSnapshot, BaseDB):
         name = "snapshots"
 
 class Product(Document, products.CreateProduct, BaseDB):
+    user_id: PydanticObjectId
     class Settings:
         name = "products"
 

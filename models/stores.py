@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Annotated
 
-from beanie import PydanticObjectId
 from pydantic import BaseModel
 from pydantic_extra_types.phone_numbers import PhoneNumberValidator
 import phonenumbers
@@ -17,10 +16,7 @@ class CURRENCIES (str, Enum):
     USD = "USD"
     VES = "VES"
 
-class BaseStore(BaseModel):
-    user_id: PydanticObjectId
-
-class CreateStore (BaseStore):
+class CreateStore (BaseModel):
     name: str
     tax_doc: str
     phone_number: E164NumberType

@@ -3,6 +3,7 @@ from typing import Annotated
 from beanie import PydanticObjectId
 from beanie.operators import In
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi_pagination import Page
 
 from db.documents import Billing, Snapshot, Transaction
 from db.server import Store
@@ -10,6 +11,7 @@ from db.server import Selling
 from auth import CurrentUserType
 from models.stores import CreateStore, PatchStore, SearchStore
 from routers.transactions import delete_transactions_by_store_id
+from fastapi_pagination.ext.beanie import apaginate
 
 router = APIRouter(prefix="/api/stores")
 
@@ -32,19 +34,18 @@ async def get_store_by_id(store_id: str, current_user: CurrentUserType):
 
 @router.get(
     "/all",
-    response_model=list[Store]
+    response_model=Page[Store]
 )
 async def get_all_stores(
     current_user: CurrentUserType,
-    search_terms: SearchTerms = SearchStore()
+    search_terms: SearchStore = Query()
 ):
-    stores = await Store.find_many(
+    stores = Store.find_many(
         Store.user_id == current_user.id,
         search_terms.model_dump(exclude_none=True)
-    ).to_list()
+    )
 
-    return stores
-
+    return apaginate(stores)
 
 @router.post(
     "/create",

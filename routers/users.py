@@ -1,8 +1,10 @@
 from typing import Annotated
 
+from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends
 
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 from db.server import User
 from auth import (
@@ -14,19 +16,20 @@ from auth import (
     hash_password
 )
 from models.users import BaseUser, PatchUser
-from routers.billing import delete_all_billings
 from routers.products import delete_all_products
 from routers.stores import delete_all_stores
-from routers.transactions import delete_all_transactions
 
 router = APIRouter(prefix="/api/users")
 
+class UserProjection(BaseUser):
+        id: PydanticObjectId
+
 @router.get(
     "/me",
-    response_model=BaseUser
+    response_model=UserProjection
 )
 async def get_own_details(current_user: CurrentUserType):
-    return BaseUser(**current_user.model_dump())
+    return UserProjection(**current_user.model_dump())
 
 @router.get(
     "/public/{username}",

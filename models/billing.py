@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 
-from models.general import BaseDB, ProductDescriptor
+from models.general import ProductDescriptor
 from models.stores import CURRENCIES
 
 class BaseBilling(BaseModel):
