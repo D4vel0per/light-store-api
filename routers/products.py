@@ -6,7 +6,7 @@ from beanie import PydanticObjectId
 from fastapi_pagination import Page
 
 from auth import CurrentUserType
-from db.documents import Snapshot
+from db.documents import Snapshot, Store, User
 from db.server import Product
 from models.products import CreateProduct, PatchProduct, SearchProduct
 from fastapi_pagination.ext.beanie import apaginate
@@ -15,6 +15,13 @@ router = APIRouter(prefix="/api/products")
 
 type SearchTerms = Annotated[SearchProduct, Query()]
 
+async def get_user_stores (current_user: User):
+    stores = await Store.find_many(
+        Store.user_id == current_user.id
+    ).to_list()
+
+    return stores
+
 @router.get(
     "/get/{product_id}",
     response_model=Product|None
@@ -22,9 +29,13 @@ type SearchTerms = Annotated[SearchProduct, Query()]
 async def get_product_by_id(product_id: str, current_user: CurrentUserType):
     object_id = PydanticObjectId(product_id)
 
+    stores = await get_user_stores(current_user)
+
+    store_ids = [ store.id for store in stores if store.id ]
+
     product = await Product.find_one(
-        Product.id == object_id,
-        Product.user_id == current_user.id
+        In(Product.store_id, store_ids),
+        Product.id == object_id
     )
 
     return product
@@ -38,8 +49,12 @@ async def get_all_products(
     current_user: CurrentUserType,
     search_terms: SearchProduct = Query()
 ):
+    stores = await get_user_stores(current_user)
+
+    store_ids = [ store.id for store in stores if store.id ]
+    
     return apaginate(Product.find_many(
-        Product.user_id == current_user.id,
+        In(Product.store_id, store_ids),
         search_terms.model_dump(exclude_none=True)
     ))
 
@@ -50,8 +65,19 @@ async def get_all_products(
 async def create_new_product(product_data: CreateProduct, current_user: CurrentUserType):
     if not current_user.id: return None
 
+    store = Store.find_one(
+        Store.id == product_data.store_id,
+        Store.user_id == current_user.id
+    )
+
+    if not store:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Store does not belong to the user"
+        )
+
     product = Product(
-        user_id=current_user.id,
+        store_id=product_data.store_id,
         name=product_data.name,
         brand=product_data.brand,
         description=product_data.description,
@@ -77,9 +103,13 @@ async def update_product(
 ):
     object_id = PydanticObjectId(product_id)
 
+    stores = await get_user_stores(current_user)
+
+    store_ids = [ store.id for store in stores if store.id ]
+
     product = await Product.find_one(
         Product.id == object_id,
-        Product.user_id == current_user.id
+        In(Product.store_id, store_ids)
     )
 
     if not product:
@@ -100,9 +130,13 @@ async def update_product(
 async def delete_product(product_id: str, current_user: CurrentUserType):
     object_id = PydanticObjectId(product_id)
 
+    stores = await get_user_stores(current_user)
+
+    store_ids = [ store.id for store in stores if store.id ]
+
     product = await Product.find_one(
         Product.id == object_id,
-        Product.user_id == current_user.id
+        In(Product.store_id, store_ids)
     )
 
     if not product:
@@ -123,12 +157,18 @@ async def delete_all_products(
     current_user: CurrentUserType,
     search_terms: SearchTerms = SearchProduct()
 ):
-    products = await Product.find_many(
-        Product.user_id == current_user.id,
-        search_terms.model_dump(exclude_none=True)
-    ).to_list()
+    stores = await get_user_stores(current_user)
 
-    product_ids = [product.id for product in products if product.id]
+    store_ids = [ store.id for store in stores if store.id ]
+
+    products = Product.find_many(
+        In(Product.store_id, store_ids),
+        search_terms.model_dump(exclude_none=True)
+    )
+
+    product_ids = [
+        product.id for product in (await products.to_list()) if product.id
+    ]
 
     if not product_ids:
         return
@@ -137,6 +177,4 @@ async def delete_all_products(
         In(Snapshot.product_id, product_ids)
     ).delete_many()
 
-    await Product.find_many(
-        In(Product.id, product_ids)
-    ).delete_many()
+    await products.delete_many()

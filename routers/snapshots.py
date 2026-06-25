@@ -25,12 +25,13 @@ async def verify_snapshot(snapshot: Snapshot | None, user: User):
         Store.user_id == user.id
     )
 
+    if not store: return False
+
     product = await Product.find_one(
         Product.id == snapshot.product_id,
-        Product.user_id == user.id
+        Product.store_id == store.id
     )
-
-    if not store: return False
+    
     if not product: return False
 
     return True
@@ -192,9 +193,15 @@ async def delete_snapshot(snapshot_id: str, current_user: CurrentUserType):
 async def delete_snapshots_by_product_id(product_id: str, current_user: CurrentUserType):
     object_id = PydanticObjectId(product_id)
 
+    stores = Store.find_many(
+        Store.user_id == current_user.id
+    )
+
     product = await Product.find_one(
         Product.id == object_id,
-        Product.user_id == current_user.id
+        In(
+            Product.store_id, await stores.to_list()
+        )
     )
     if not product:
         raise HTTPException(

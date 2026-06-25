@@ -5,7 +5,7 @@ from beanie.operators import In
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi_pagination import Page
 
-from db.documents import Billing, Snapshot, Transaction
+from db.documents import Billing, Product, Snapshot, Transaction
 from db.server import Store
 from db.server import Selling
 from auth import CurrentUserType
@@ -117,6 +117,7 @@ async def delete_store(store_id: str, current_user: CurrentUserType):
         current_user=current_user
     )
     await Snapshot.find_many(Snapshot.store_id == store.id).delete_many()
+    await Product.find_many(Product.store_id == store.id).delete_many()
 
     await store.delete()
 
@@ -146,6 +147,9 @@ async def delete_all_stores(
     transaction_ids = [t.id for t in transactions if t.id]
 
     if transaction_ids:
+        await Selling.find_many(
+        In(Selling.transaction_id, transaction_ids)
+        ).delete_many()
         await Billing.find_many(
             In(Billing.transaction_id, transaction_ids)
         ).delete_many()
@@ -153,8 +157,8 @@ async def delete_all_stores(
             In(Transaction.id, transaction_ids)
         ).delete_many()
 
-    await Selling.find_many(
-        In(Selling.transaction_id, transaction_ids)
+    await Product.find_many(
+        In(Product.store_id, store_ids)
     ).delete_many()
 
     await Snapshot.find_many(

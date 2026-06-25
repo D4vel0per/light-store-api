@@ -25,7 +25,6 @@ class Snapshot(Document, snapshots.CreateSnapshot, BaseDB):
         name = "snapshots"
 
 class Product(Document, products.CreateProduct, BaseDB):
-    user_id: PydanticObjectId
     class Settings:
         name = "products"
 
